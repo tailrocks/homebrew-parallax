@@ -8,15 +8,14 @@ Preview channel:
 
 ```bash
 brew tap tailrocks/parallax
+brew trust tailrocks/parallax
 brew install parallax@preview
 ```
 
 Stable channel will be enabled after the first stable Parallax release.
 
-```bash
-brew tap tailrocks/parallax
-brew install parallax
-```
+Homebrew can refuse to load formulae from taps that have not been trusted. Run
+`brew trust tailrocks/parallax` once after tapping this repository.
 
 ## License
 

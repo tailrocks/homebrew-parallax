@@ -8,7 +8,7 @@ Preview channel:
 
 ```bash
 brew tap tailrocks/parallax
-brew install parallax-preview
+brew install parallax@preview
 ```
 
 Stable channel will be enabled after the first stable Parallax release.

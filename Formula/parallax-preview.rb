@@ -8,22 +8,22 @@ class ParallaxPreview < Formula
   on_macos do
     on_arm do
       url "https://github.com/tailrocks/parallax/releases/download/preview/parallax-aarch64-apple-darwin.tar.gz"
-      sha256 "c3a9ba51dda2a24a94f6ca2a3970fa25b9e55f053d6b6cab77eb2056d500e1de"
+      sha256 "9471579ea6e922b1fb755dfa1ca845d7c531b693bcb120de2c0eeea0480aea33"
     end
     on_intel do
       url "https://github.com/tailrocks/parallax/releases/download/preview/parallax-x86_64-apple-darwin.tar.gz"
-      sha256 "fc5ac799534dc7681fb9ee127e7ba7475f78f6ad3e07a78c0324c60db4c2e78e"
+      sha256 "3d0a638b44207754262bf3504bf72f6b5bc4f7548e12fa476c175dedbcd0fb72"
     end
   end
 
   on_linux do
     on_arm do
       url "https://github.com/tailrocks/parallax/releases/download/preview/parallax-aarch64-unknown-linux-gnu.tar.gz"
-      sha256 "97fc7086b57e42b2ea70c9d74d7c78d33cbf16f3977ae77b378a55a213f8349f"
+      sha256 "0e4f1a811bb2637eca274ba496a67d8541ef0bbd92265bfbeab5ec978ea907ae"
     end
     on_intel do
       url "https://github.com/tailrocks/parallax/releases/download/preview/parallax-x86_64-unknown-linux-gnu.tar.gz"
-      sha256 "ba3f5c147147171d25007a1c39e8642e03b5820da3f185ab2b2ed7c69fd1e5b2"
+      sha256 "f5df5a369237b791e1253e6b8f8d35d7a9aecad6632fe3c8aadb4567e692e6d3"
     end
   end
 

@@ -1,29 +1,29 @@
-# source-sha: 37581c95c6aef03009823ca58ab154537b735377
+# source-sha: 32960d910062d3c7de3bc440d61cb93aa9d16f5a
 class ParallaxPreview < Formula
   desc "Local-first observability for agent-assisted development"
   homepage "https://github.com/tailrocks/parallax"
-  version "0.1.0-preview.714+37581c9"
+  version "0.1.0-preview.715+32960d9"
   license "Apache-2.0"
 
   on_macos do
     on_arm do
       url "https://github.com/tailrocks/parallax/releases/download/preview/parallax-aarch64-apple-darwin.tar.gz"
-      sha256 "e970b503e903677903dd899aa47d8b6a9ae2d678e5d55bd3ab489d88742bfd65"
+      sha256 "b76827413e1920b35492a2e1cd6267f9750ca9a9274b990a3f7bea4281c7e4c4"
     end
     on_intel do
       url "https://github.com/tailrocks/parallax/releases/download/preview/parallax-x86_64-apple-darwin.tar.gz"
-      sha256 "dcbdbe62f541961919c50d59601dfeae05579cbeb6215d4b0e9c92f67d4bab2e"
+      sha256 "2b1c0857fe16f90366dbd95f2b02c5f78604de942a0a1c18931e5d782cfba446"
     end
   end
 
   on_linux do
     on_arm do
       url "https://github.com/tailrocks/parallax/releases/download/preview/parallax-aarch64-unknown-linux-gnu.tar.gz"
-      sha256 "8dd434cd669cff76f5ab14d02eab0eae0157656ab87d09e2792d1e62d5d35d1e"
+      sha256 "22c1eeddd45b99b96f8833956725650485b453c41e7afe6bce5537a41b9ebd62"
     end
     on_intel do
       url "https://github.com/tailrocks/parallax/releases/download/preview/parallax-x86_64-unknown-linux-gnu.tar.gz"
-      sha256 "d3bc4c778dc560bdd624974f825b6ebba38e0a8931d09af26d0e6a645f6eb9a3"
+      sha256 "aad6dcf1d243e2c7cb09b5adf76bb572c07368b29b4e5007295e9e838cc023f9"
     end
   end
 

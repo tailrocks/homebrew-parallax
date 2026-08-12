@@ -7,5 +7,14 @@ jq = "1.8.2"
 [tasks.actionlint]
 run = "actionlint"
 
+[tasks.package-update]
+run = "./scripts/package-update.sh"
+
+[tasks.package-update-test]
+run = "./scripts/test-package-update.sh"
+
+[tasks.check]
+depends = ["actionlint", "package-update-test"]
+
 [settings]
 lockfile = true

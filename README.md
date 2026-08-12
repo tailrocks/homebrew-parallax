@@ -12,7 +12,8 @@ brew trust tailrocks/parallax
 brew install parallax@preview
 ```
 
-Stable channel will be enabled after the first stable Parallax release.
+Stable channel is updated only from a checksum- and provenance-verified Parallax
+release through a consumer-owned signed-off pull request.
 
 Homebrew can refuse to load formulae from taps that have not been trusted. Run
 `brew trust tailrocks/parallax` once after tapping this repository.

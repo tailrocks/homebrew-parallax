@@ -185,8 +185,8 @@ jobs:
 
       - name: Commit verified formula update
         if: matrix.config.writer
+        id: update
         env:
-          GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.release.outputs.version }}
           SOURCE_SHA: ${{ steps.release.outputs.source_sha }}
         run: |
@@ -194,17 +194,43 @@ jobs:
           git add Formula/parallax-preview.rb
           if git diff --cached --quiet; then
             echo "Preview formula already matches ${SOURCE_SHA}"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          current_sha=$(gh api \
-            "repos/${GITHUB_REPOSITORY}/contents/Formula/parallax-preview.rb" \
-            --jq .sha)
-          content=$(base64 < Formula/parallax-preview.rb | tr -d '\n')
-          gh api --method PUT \
-            "repos/${GITHUB_REPOSITORY}/contents/Formula/parallax-preview.rb" \
-            -f message="parallax@preview ${VERSION}" \
-            -f content="$content" \
-            -f sha="$current_sha" >/dev/null
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Mint package-updater credential
+        if: matrix.config.writer && steps.update.outputs.changed == 'true'
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        id: app-token
+        with:
+          app-id: ${{ vars.PACKAGE_UPDATER_APP_ID }}
+          private-key: ${{ secrets.PACKAGE_UPDATER_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+
+      - name: Open verified formula pull request
+        if: matrix.config.writer && steps.update.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          VERSION: ${{ steps.release.outputs.version }}
+          SOURCE_SHA: ${{ steps.release.outputs.source_sha }}
+          BOT_LOGIN: ${{ vars.PACKAGE_UPDATER_BOT_LOGIN }}
+          BOT_EMAIL: ${{ vars.PACKAGE_UPDATER_BOT_EMAIL }}
+          BRANCH: package-update/verified/preview
+        run: |
+          set -euo pipefail
+          git config user.name "$BOT_LOGIN"
+          git config user.email "$BOT_EMAIL"
+          git switch -C "$BRANCH"
+          git commit --signoff -m "parallax@preview ${VERSION}"
+          gh auth setup-git
+          git push --force-with-lease origin "$BRANCH"
+          gh pr view "$BRANCH" >/dev/null 2>&1 || gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "parallax@preview ${VERSION}" \
+            --body "Verified preview update from tailrocks/parallax@${SOURCE_SHA}."
 
   update-required:
     needs: [update]

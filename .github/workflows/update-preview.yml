@@ -261,6 +261,7 @@ jobs:
           set -euo pipefail
           git config user.name "$BOT_LOGIN"
           git config user.email "$BOT_EMAIL"
+          git fetch --no-tags origin "refs/heads/$BRANCH:refs/remotes/origin/$BRANCH" || true
           git switch -C "$BRANCH"
           git commit --signoff -m "parallax@preview ${VERSION}"
           gh auth setup-git

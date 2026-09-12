@@ -25,10 +25,10 @@ jq -e --arg tag "refs/tags/$tag" '
 ' "$manifest" >/dev/null
 
 asset() {
-  local target=$1
-  local name="parallax-${version}-${target}.tar.gz"
-  test -f "$verified/$name"
-  jq -er --arg name "$name" '
+	local target=$1
+	local name="parallax-${version}-${target}.tar.gz"
+	test -f "$verified/$name"
+	jq -er --arg name "$name" '
     [.assets[] | select(.name == $name)]
     | select(length == 1)
     | .[0].sha256
@@ -43,7 +43,7 @@ linux_intel=$(asset x86_64-unknown-linux-gnu)
 source_commit=$(jq -er '.source_commit' "$manifest")
 test "$(jq -r '.source_digest' "$identity")" = "$source_commit"
 
-cat > Formula/parallax.rb <<EOF
+cat >Formula/parallax.rb <<EOF
 # source-sha: $source_commit
 class Parallax < Formula
   desc "Local-first observability for agent-assisted development"

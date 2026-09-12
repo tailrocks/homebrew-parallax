@@ -1,11 +1,25 @@
+# Gate contract (tap class): every CI gate resolves to exactly one disjoint
+# mise task; no leaf command identity repeats across gates. install is the
+# workflow-level `mise install --locked` command. build = formula Ruby syntax
+# check. test = functional test of the verified package updater (platform
+# lane). lint = actionlint (workflows) + shellcheck (scripts). No fmt gate:
+# no formatter is pinned in this repository. ci is the human aggregate
+# (depends only, no command). package-update is the package-updater
+# workflow's task, not a CI gate.
+
 [tools]
 actionlint = "1.7.12"
 cosign = "3.1.2"
 gh = "2.96.0"
 jq = "1.8.2"
+ruby = "4.0.6"
+shellcheck = "0.11.0"
 
 [tasks.actionlint]
 run = "actionlint"
+
+[tasks.shellcheck]
+run = "shellcheck scripts/*.sh"
 
 [tasks.package-update]
 run = "./scripts/package-update.sh"
@@ -13,20 +27,17 @@ run = "./scripts/package-update.sh"
 [tasks.package-update-test]
 run = "./scripts/test-package-update.sh"
 
-[tasks.check]
-depends = ["actionlint", "package-update-test"]
-
 [tasks.build]
-depends = ["check"]
+run = 'set -e; for f in Formula/*.rb; do ruby -c "$f" || exit 1; done'
 
 [tasks.test]
 depends = ["package-update-test"]
 
 [tasks.lint]
-depends = ["actionlint"]
+depends = ["actionlint", "shellcheck"]
 
-[tasks.fmt]
-depends = ["check"]
+[tasks.ci]
+depends = ["build", "test", "lint"]
 
 [settings]
 lockfile = true

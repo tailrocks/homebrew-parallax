@@ -1,0 +1,292 @@
+name: Pull verified Parallax preview
+
+on:
+  schedule:
+    - cron: "17,47 * * * *"
+  workflow_dispatch:
+    inputs:
+      lanes:
+        description: velnor (default) | github | both
+        type: choice
+        default: velnor
+        options: [velnor, github, both]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: update-preview-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  update:
+    name: Verify assets and update formula (${{ matrix.config.lane }})
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        config: ${{ fromJSON((github.event_name == 'workflow_dispatch' && inputs.lanes == 'both') && '[{"lane":"Velnor","runner":["self-hosted","velnor-target-mvp"]},{"lane":"GitHub","runner":"ubuntu-26.04"}]' || (github.event_name == 'workflow_dispatch' && inputs.lanes == 'github') && '[{"lane":"GitHub","runner":"ubuntu-26.04"}]' || '[{"lane":"Velnor","runner":["self-hosted","velnor-target-mvp"]}]') }}
+    runs-on: ${{ matrix.config.runner }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: jdx/mise-action@3c2e0cf82a5b2e5249f0d3635a4d83d0ae861518 # v4.2.5
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download complete preview asset set
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          metadata=$(gh release view preview --repo tailrocks/parallax \
+            --json name,targetCommitish)
+          version=$(jq -er '.name | sub("^Preview "; "")' <<< "$metadata")
+          source_sha=$(jq -er '.targetCommitish' <<< "$metadata")
+          [[ "$source_sha" =~ ^[0-9a-f]{40}$ ]] || {
+            echo "::error::preview target is not a full commit SHA: $source_sha"
+            exit 1
+          }
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+-preview\.[0-9]+\+[0-9a-f]{7}$ ]] || {
+            echo "::error::preview version is malformed: $version"
+            exit 1
+          }
+          rm -rf artifacts
+          mkdir artifacts
+          gh release download preview --repo tailrocks/parallax --dir artifacts
+          {
+            echo "version=$version"
+            echo "source_sha=$source_sha"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Verify checksums, SBOMs, signatures, and provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ steps.release.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          targets=(
+            aarch64-apple-darwin
+            x86_64-apple-darwin
+            aarch64-unknown-linux-gnu
+            x86_64-unknown-linux-gnu
+          )
+          test "$(find artifacts -maxdepth 1 -type f | wc -l)" -eq 16
+          for target in "${targets[@]}"; do
+            archive="artifacts/parallax-${target}.tar.gz"
+            for suffix in '' .sha256 .bundle .sbom.json; do
+              test -f "${archive}${suffix}" || {
+                echo "::error::missing ${archive}${suffix}"
+                exit 1
+              }
+            done
+            expected=$(tr -d '\n' < "${archive}.sha256")
+            actual=$(sha256sum "$archive" | awk '{print $1}')
+            test "$expected" = "$actual" || {
+              echo "::error::checksum mismatch for $archive"
+              exit 1
+            }
+            jq -e --arg name "$(basename "$archive")" --arg digest "$actual" '
+              .bomFormat == "CycloneDX" and
+              .specVersion == "1.6" and
+              .metadata.component.name == $name and
+              .metadata.component.version == ("sha256:" + $digest)
+            ' "${archive}.sbom.json" >/dev/null
+            cosign verify-blob \
+              --bundle "${archive}.bundle" \
+              --certificate-identity \
+                "https://github.com/tailrocks/parallax/.github/workflows/preview.yml@refs/heads/main" \
+              --certificate-oidc-issuer \
+                "https://token.actions.githubusercontent.com" \
+              "$archive"
+            gh attestation verify "$archive" \
+              --repo tailrocks/parallax \
+              --signer-workflow tailrocks/parallax/.github/workflows/preview.yml \
+              --source-digest "$SOURCE_SHA" \
+              --source-ref refs/heads/main \
+              --deny-self-hosted-runners >/dev/null
+          done
+
+      - name: Verify executable version
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir verified-binary
+          tar -xzf artifacts/parallax-x86_64-unknown-linux-gnu.tar.gz \
+            -C verified-binary
+          test "$(verified-binary/parallax --version)" = "parallax ${VERSION}"
+
+      - name: Rewrite rolling preview formula
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+          SOURCE_SHA: ${{ steps.release.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          arm64_macos=$(cat artifacts/parallax-aarch64-apple-darwin.tar.gz.sha256)
+          x86_macos=$(cat artifacts/parallax-x86_64-apple-darwin.tar.gz.sha256)
+          arm64_linux=$(cat artifacts/parallax-aarch64-unknown-linux-gnu.tar.gz.sha256)
+          x86_linux=$(cat artifacts/parallax-x86_64-unknown-linux-gnu.tar.gz.sha256)
+          cat > Formula/parallax-preview.rb <<EOF
+          # source-sha: ${SOURCE_SHA}
+          class ParallaxPreview < Formula
+            desc "Local-first observability for agent-assisted development"
+            homepage "https://github.com/tailrocks/parallax"
+            version "${VERSION}"
+            license "Apache-2.0"
+
+            on_macos do
+              on_arm do
+                url "https://github.com/tailrocks/parallax/releases/download/preview/parallax-aarch64-apple-darwin.tar.gz"
+                sha256 "${arm64_macos}"
+              end
+              on_intel do
+                url "https://github.com/tailrocks/parallax/releases/download/preview/parallax-x86_64-apple-darwin.tar.gz"
+                sha256 "${x86_macos}"
+              end
+            end
+
+            on_linux do
+              on_arm do
+                url "https://github.com/tailrocks/parallax/releases/download/preview/parallax-aarch64-unknown-linux-gnu.tar.gz"
+                sha256 "${arm64_linux}"
+              end
+              on_intel do
+                url "https://github.com/tailrocks/parallax/releases/download/preview/parallax-x86_64-unknown-linux-gnu.tar.gz"
+                sha256 "${x86_linux}"
+              end
+            end
+
+            conflicts_with "tailrocks/parallax/parallax", because: "preview and stable install the same binary"
+
+            def install
+              bin.install "parallax"
+            end
+
+            def caveats
+              <<~EOS
+                Start the local server (downloads a pinned GreptimeDB on first run):
+                  parallax serve
+                Then open http://127.0.0.1:4000 - quickstart:
+                  https://github.com/tailrocks/parallax/blob/main/docs/guide/quickstart.md
+              EOS
+            end
+
+            test do
+              assert_match version.to_s, shell_output("#{bin}/parallax --version")
+            end
+          end
+          EOF
+
+      - name: Retain independently verified formula
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: verified-preview-${{ matrix.config.lane }}
+          path: Formula/parallax-preview.rb
+          if-no-files-found: error
+
+  publish:
+    name: Publish verified formula
+    needs: [update]
+    runs-on: ${{ 'ubuntu-26.04' }}
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v8.0.1
+        with:
+          pattern: verified-preview-*
+          path: verified
+      - name: Reconcile exact lane evidence
+        id: update
+        env:
+          EXPECTED_LANES: ${{ github.event_name == 'workflow_dispatch' && inputs.lanes == 'both' && 'GitHub Velnor' || github.event_name == 'workflow_dispatch' && inputs.lanes == 'github' && 'GitHub' || 'Velnor' }}
+        run: |
+          set -euo pipefail
+          mapfile -t actual < <(find verified -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sed 's/^verified-preview-//' | sort)
+          read -ra expected <<< "$EXPECTED_LANES"
+          mapfile -t expected < <(printf '%s\n' "${expected[@]}" | sort)
+          diff -u <(printf '%s\n' "${expected[@]}") <(printf '%s\n' "${actual[@]}")
+          for lane in "${actual[@]}"; do
+            test -f "verified/verified-preview-${lane}/parallax-preview.rb"
+          done
+          if [[ ${#actual[@]} -eq 2 ]]; then
+            cmp verified/verified-preview-GitHub/parallax-preview.rb \
+              verified/verified-preview-Velnor/parallax-preview.rb
+          fi
+          cp "verified/verified-preview-${actual[0]}/parallax-preview.rb" Formula/parallax-preview.rb
+          git add Formula/parallax-preview.rb
+          if git diff --cached --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+          version=$(sed -n 's/^  version "\([^"]*\)"/\1/p' Formula/parallax-preview.rb)
+          source_sha=$(sed -n 's/^# source-sha: //p' Formula/parallax-preview.rb)
+          test -n "$version"
+          [[ "$source_sha" =~ ^[0-9a-f]{40}$ ]]
+          {
+            echo "version=$version"
+            echo "source_sha=$source_sha"
+          } >> "$GITHUB_OUTPUT"
+      - name: Mint package-updater credential
+        if: steps.update.outputs.changed == 'true'
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        id: app-token
+        with:
+          app-id: ${{ vars.PACKAGE_UPDATER_APP_ID }}
+          private-key: ${{ secrets.PACKAGE_UPDATER_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+
+      - name: Open verified formula pull request
+        if: steps.update.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          VERSION: ${{ steps.update.outputs.version }}
+          SOURCE_SHA: ${{ steps.update.outputs.source_sha }}
+          BOT_LOGIN: ${{ vars.PACKAGE_UPDATER_BOT_LOGIN }}
+          BOT_EMAIL: ${{ vars.PACKAGE_UPDATER_BOT_EMAIL }}
+          BRANCH: package-update/verified/preview
+        run: |
+          set -euo pipefail
+          git config user.name "$BOT_LOGIN"
+          git config user.email "$BOT_EMAIL"
+          git fetch --no-tags origin "refs/heads/$BRANCH:refs/remotes/origin/$BRANCH" || true
+          git switch -C "$BRANCH"
+          git commit --signoff -m "parallax@preview ${VERSION}"
+          gh auth setup-git
+          git push --force-with-lease origin "$BRANCH"
+          OPEN_PR_COUNT="$(gh pr list --state open --head "$BRANCH" --base main --json number --jq 'length')"
+          test "$OPEN_PR_COUNT" -le 1
+          if test "$OPEN_PR_COUNT" -eq 0; then
+            gh pr create \
+              --base main \
+              --head "$BRANCH" \
+              --title "parallax@preview ${VERSION}" \
+              --body "Verified preview update from tailrocks/parallax@${SOURCE_SHA}."
+          fi
+          gh pr merge "$BRANCH" --auto --squash --delete-branch
+
+  update-required:
+    needs: [update, publish]
+    if: always()
+    name: Update preview required
+    timeout-minutes: 5
+    runs-on: ${{ 'ubuntu-26.04' }}
+    steps:
+      - name: Fail on any failed or cancelled need
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: |
+          echo "$NEEDS_JSON" | jq -e 'to_entries | map(.value.result) | any(. == "failure" or . == "cancelled") | not' >/dev/null \
+            || { echo "A required job failed or was cancelled." >&2; exit 1; }

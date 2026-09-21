@@ -2,7 +2,6 @@
 class Parallax < Formula
   desc "Local-first observability for agent-assisted development"
   homepage "https://github.com/tailrocks/parallax"
-  version "0.1.0"
   license "Apache-2.0"
 
   on_macos do

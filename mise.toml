@@ -44,5 +44,14 @@ run = "shfmt -d scripts/*.sh"
 [tasks.ci]
 depends = ["build", "test", "lint"]
 
+[tasks."brew:tap-local"]
+description = "Link this checkout as a trusted tap so bare brew audit resolves it"
+run = "tap_dir=\"$(brew --repo)/Library/Taps/tailrocks\" && mkdir -p \"$tap_dir\" && ln -sfn \"$PWD\" \"$tap_dir/homebrew-parallax\" && brew trust tailrocks/parallax"
+
+[tasks."brew:audit"]
+description = "Strict online audit of the linked tap (PR1 scaffolding; PR2 runs the bare audit via unit prerequisites)"
+depends = ["brew:tap-local"]
+run = "brew audit --strict --online"
+
 [settings]
 lockfile = true

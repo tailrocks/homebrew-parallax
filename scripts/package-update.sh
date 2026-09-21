@@ -48,7 +48,6 @@ cat >Formula/parallax.rb <<EOF
 class Parallax < Formula
   desc "Local-first observability for agent-assisted development"
   homepage "https://github.com/tailrocks/parallax"
-  version "$version"
   license "Apache-2.0"
 
   on_macos do

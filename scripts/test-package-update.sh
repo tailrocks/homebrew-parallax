@@ -45,7 +45,11 @@ jq -Sn \
 	shasum -a 256 Formula/parallax.rb >"$tmp/first.sha"
 	VELNOR_VERIFIED_PACKAGE_DIR="$verified" ./scripts/package-update.sh
 	shasum -a 256 -c "$tmp/first.sha"
-	grep -F 'version "1.2.3"' Formula/parallax.rb
+	grep -F 'releases/download/v1.2.3/parallax-1.2.3-' Formula/parallax.rb
+	if grep -q '^  version "' Formula/parallax.rb; then
+		echo "redundant version stanza emitted (brew audit fails it)" >&2
+		exit 1
+	fi
 	grep -F "# source-sha: $commit" Formula/parallax.rb
 	test "$(grep -c 'sha256 "[0-9a-f]\{64\}"' Formula/parallax.rb)" -eq 4
 )

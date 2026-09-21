@@ -1,39 +1,38 @@
-schema = 1
+schema = 2
 
 [generator]
 repository = "tailrocks/homebrew-parallax"
-revision = "4fa7a3a85f141a6bb95bc9bdf0eef9e3ddde165d"
+revision = "4dec6b9ec28b0d51cb370fd8f5d5401c6186adf0"
 
-# runners="github" (not main's "both"): the b9c3156 base validator predates
-# the 4fa7a3a8 velnor-lane gate shape, so any rendered velnor lane fatally
-# fails its trusted-runners rule (proven with the base binary locally).
-# The velnor lanes die in PR2 (s2) regardless; PR1 drops them one step
-# early. Zero estate capacity means they never execute anyway.
+# Public tap: GitHub-hosted singleton (no velnor lanes).
 [workflow]
-runners = "github"
-automatic_lanes = "github"
-default_dispatch_runner = "github"
-github_runner = "ubuntu-24.04"
-velnor_labels = ["self-hosted", "velnor-target-mvp"]
+providers = ["github-hosted"]
+automatic_providers = ["github-hosted"]
 default_branch = "main"
 
+[workflow.selectors.github-hosted]
+runs_on = ["ubuntu-24.04"]
+
+# Trio per as-code/runbook; live protect-main is still [ci-required, DCO],
+# so Policy reports advisory-red until the W6.2 terraform apply adds live
+# Policy — no tree change needed then (the declaration already matches).
 [policy]
-ruleset_required_status_checks = ["ci-required"]
+ruleset_required_status_checks = ["ci-required", "Policy"]
 ruleset_external_status_checks = ["DCO"]
 
-# PR1-only scaffolding (removed in PR2): the b9c3156 base validator
-# predates [[units.products]]/[[units.prerequisites]] (fatal TOML parse),
-# and override ci_tasks append after the scanned audit (linkage would run
-# after the audit it must precede). So the scan skips the tap and this
-# added unit runs the link-then-audit chain in order under the same watch.
-# The audit itself is genuine (same command against the linked tap).
-[scan]
-exclude = ["Formula/**", "Casks/**", "Brewfile"]
+[[units]]
+id = "tap-local"
+kind = "homebrew"
+label = "Tap local checkout"
+ci_tasks = ["brew:tap-local"]
+
+[[units.products]]
+name = "local-tap"
+task = "brew:tap-local"
 
 [[units]]
 id = "homebrew"
-kind = "homebrew"
-label = "Homebrew"
-root = "."
-watch = ["Brewfile", "Casks/**", "Formula/**"]
-ci_tasks = ["brew:audit"]
+
+[[units.prerequisites]]
+producer = "tap-local"
+product = "local-tap"

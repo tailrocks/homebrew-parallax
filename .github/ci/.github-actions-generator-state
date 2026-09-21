@@ -1,16 +1,18 @@
 # Generated ownership state; do not edit.
 schema = 2
 [inputs]
-config	134611b7a9a36efd
-scan	cc88bf87bd706670
-generator	54
+config	ea8d7d2710fce8a0
+scan	0a2f2963a84f6630
+generator	69
 [outputs]
-.github/actionlint.yaml	ec35f48ae7e90e0e
-.github/ci/project.toml	ca6c2a6dd1995791
-.github/workflows/ci-main.yml	32d9cb42f8300838
-.github/workflows/ci-policy.yml	e4f8d6d6bfe9cf06
-.github/workflows/ci-pr.yml	50e734636c2d0c74
-.github/workflows/ci-unit-homebrew.yml	211fb5c89a5b32e0
-.github/workflows/maintenance.yml	b38094a09a507115
-.github/workflows/nightly.yml	7e69c34242bb65c7
+.github/AGENTS.md	02ebb7198c435e9b
+.github/actionlint.yaml	c642e98fce5b1906
+.github/ci/project.toml	46acf35aa24572b4
+.github/workflows/ci-main.yml	af0b3c1a9c747e91
+.github/workflows/ci-policy.yml	6ed3b0156220a772
+.github/workflows/ci-pr.yml	0db2b489395d0c6e
+.github/workflows/ci-unit-homebrew.yml	f79ee17634a77198
+.github/workflows/maintenance.yml	40515e95a46d5259
+.github/workflows/nightly.yml	0659fbb3d6af2359
 config/fleet/velnor-host.env	d14b419216449423
+.github/CLAUDE.md	78a740c6ccf6937a

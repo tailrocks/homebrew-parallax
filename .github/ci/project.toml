@@ -4,7 +4,7 @@ repository = "tailrocks/homebrew-parallax"
 profile = "generic"
 verified = true
 default_branch = "main"
-runners = "both"
+runners = "github"
 
 [analysis]
 method = "static-filesystem-and-manifest-inspection"
@@ -26,7 +26,7 @@ label = "Homebrew"
 kind = "homebrew"
 root = "."
 watch = ["Brewfile", "Casks/**", "Formula/**"]
-github_pr_commands = ["brew audit --strict --online"]
-github_full_commands = ["brew audit --strict --online"]
-velnor_pr_commands = ["brew audit --strict --online"]
-velnor_full_commands = ["brew audit --strict --online"]
+github_pr_commands = ["mise run brew:audit"]
+github_full_commands = ["mise run brew:audit"]
+velnor_pr_commands = ["mise run brew:audit"]
+velnor_full_commands = ["mise run brew:audit"]

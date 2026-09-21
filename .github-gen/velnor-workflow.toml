@@ -2,10 +2,15 @@ schema = 1
 
 [generator]
 repository = "tailrocks/homebrew-parallax"
-revision = "b9c3156cdb88e63c11b9e595a3e694b02238c09a"
+revision = "4fa7a3a85f141a6bb95bc9bdf0eef9e3ddde165d"
 
+# runners="github" (not main's "both"): the b9c3156 base validator predates
+# the 4fa7a3a8 velnor-lane gate shape, so any rendered velnor lane fatally
+# fails its trusted-runners rule (proven with the base binary locally).
+# The velnor lanes die in PR2 (s2) regardless; PR1 drops them one step
+# early. Zero estate capacity means they never execute anyway.
 [workflow]
-runners = "both"
+runners = "github"
 automatic_lanes = "github"
 default_dispatch_runner = "github"
 github_runner = "ubuntu-24.04"
@@ -15,3 +20,20 @@ default_branch = "main"
 [policy]
 ruleset_required_status_checks = ["ci-required"]
 ruleset_external_status_checks = ["DCO"]
+
+# PR1-only scaffolding (removed in PR2): the b9c3156 base validator
+# predates [[units.products]]/[[units.prerequisites]] (fatal TOML parse),
+# and override ci_tasks append after the scanned audit (linkage would run
+# after the audit it must precede). So the scan skips the tap and this
+# added unit runs the link-then-audit chain in order under the same watch.
+# The audit itself is genuine (same command against the linked tap).
+[scan]
+exclude = ["Formula/**", "Casks/**", "Brewfile"]
+
+[[units]]
+id = "homebrew"
+kind = "homebrew"
+label = "Homebrew"
+root = "."
+watch = ["Brewfile", "Casks/**", "Formula/**"]
+ci_tasks = ["brew:audit"]
